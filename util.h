@@ -1,6 +1,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <functional>
 #include <map>
 #include <vector>
 #include <iostream>
@@ -13,6 +14,7 @@
 #include <QInputDialog>
 #include <QProcess>
 #include <QModelIndex>
+#include <qapplication.h>
 
 enum State {
     disconnected,
@@ -201,12 +203,41 @@ struct FStab {
 
 };
 
-struct Mount {
-protected:
-    // top level entry functions
-    void run_mount(QWidget*, const QString& name);
-    void run_unmount(const QString& name);
+class LongOperation
+{
+    LongOperation()
+    {
+        QApplication::setOverrideCursor(Qt::WaitCursor);
+    }
+    ~LongOperation() throw () {
+        QApplication::restoreOverrideCursor();
+    }
+};
 
+
+// thread - must be implemented this way
+// inherit from QObject
+// have a signal connected as BlockingQueuedConnection in user
+// to a slot
+// then thread can emit some code to main thread
+// and run some gui stuff (show a MessageBox or ask a password)
+class Mount : public QObject
+{
+    Q_OBJECT
+public:
+    Mount(QWidget* p) : parent(p) {}
+    ~Mount() throw() {}
+
+    // top level functions
+    void run_unmount(const QString& name);
+    void run_mount(const QString& name);
+    void refresh();
+
+signals:
+    void signal(std::function<void(void)>);
+
+protected:
+    QWidget* parent;
     int do_cryptdisk_start(const QString& name, const QString& pass);
     int do_cryptdisk_stop(const QString& name);
     int do_mount(const QString& name);
@@ -215,6 +246,7 @@ protected:
     // util
     int just_run(QString& program, QStringList& arguments);
 
+public:
     CryptTab ctab;
     FStab fstab;
     Mounts mounts;

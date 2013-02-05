@@ -2,9 +2,14 @@
 #include "ui_dialog.h"
 
 Dialog::Dialog(QWidget *parent)
-    : QDialog(parent), ui(new Ui::DialogClass)
+    : QDialog(parent), ui(new Ui::DialogClass), mount(this)
 {
-    ui->setupUi(this);    
+    ui->setupUi(this);
+    connect(&watcher, SIGNAL(finished()), this, SLOT(operationDone()));
+    connect(&mount, SIGNAL(signal(std::function<void(void)>)),
+            this,   SLOT(mount_cb(std::function<void(void)>)),
+            Qt::BlockingQueuedConnection);
+    refresh();
 }
 
 Dialog::~Dialog()
@@ -15,18 +20,16 @@ Dialog::~Dialog()
 void
 Dialog::refresh()
 {
-    ctab.refresh();
-    fstab.refresh();
-    mounts.refresh();
+    mount.refresh();
 
-    ui->tableWidget->setRowCount(ctab.cnt.size());
+    ui->tableWidget->setRowCount(mount.ctab.cnt.size());
     QTableWidgetItem* item = 0;
     int r = 0;
-    for(CryptTab::ContainerT::iterator i = ctab.cnt.begin();
-        i != ctab.cnt.end();
+    for(CryptTab::ContainerT::iterator i = mount.ctab.cnt.begin();
+        i != mount.ctab.cnt.end();
         ++i)
     {
-        QString mp = fstab.mountpoint(i->first);
+        QString mp = mount.fstab.mountpoint(i->first);
         if ( mp.length() ) {
             QString tooltip(i->second);
 
@@ -38,7 +41,7 @@ Dialog::refresh()
             item = new QTableWidgetItem(mp);
             ui->tableWidget->setItem(r,1,item);
 
-            QString state = State2String(mounts.state(i->second, i->first));
+            QString state = State2String(mount.mounts.state(i->second, i->first));
             item = new QTableWidgetItem(state);
             ui->tableWidget->setItem(r,2,item);
             ++r;
@@ -55,21 +58,35 @@ void Dialog::on_button_refresh_clicked()
     refresh();
 }
 
+void Dialog::run_work(std::function<void(void)> f)
+{
+    ui->button_mount->setEnabled(false);
+    ui->button_umount->setEnabled(false);
+
+    QFuture<void> future = QtConcurrent::run(f);
+    watcher.setFuture(future);
+}
 
 void Dialog::on_button_mount_clicked()
 {
     QString name = get_current_name();
     std::cerr << "run mount for " << name.toStdString() << std::endl;
-    run_mount(this, name);
-    refresh();
+    run_work(std::bind(&Mount::run_mount, &mount, name));
 }
 
 void Dialog::on_button_umount_clicked()
 {
     QString name = get_current_name();
     std::cerr << "run umount for " << name.toStdString() << std::endl;
-    run_unmount(name);
+    run_work(std::bind(&Mount::run_unmount, &mount, name));
+}
+
+void Dialog::operationDone(void)
+{
     refresh();
+    ui->button_mount->setEnabled(true);
+    ui->button_umount->setEnabled(true);
+
 }
 
 QString Dialog::get_current_name()
@@ -87,16 +104,21 @@ QString Dialog::get_current_name()
 
 void Dialog::on_tableWidget_doubleClicked(QModelIndex index)
 {
+    Q_UNUSED(index);
     QString name = get_current_name();
-    QString location = ctab.location(name);
+    QString location = mount.ctab.location(name);
 
-    State state = mounts.state(location, name);
+    State state = mount.mounts.state(location, name);
     if (state == mounted) {
-        run_unmount(name);
-        refresh();
+        on_button_umount_clicked();
     } else if (state == connected) {
-        run_mount(this, name);
-        refresh();
+        on_button_mount_clicked();
     }
 }
+
+void Dialog::mount_cb(std::function<void(void)> f)
+{
+    f();
+}
+
 

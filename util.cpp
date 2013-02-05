@@ -33,6 +33,7 @@ int Mount::do_mount(const QString& name)
 
 int Mount::do_cryptdisk_start(const QString& qname, const QString& pass)
 {
+    LongOperation cursor();
 
     // sudo cryptsetup -T 1 luksOpen <location> <name>
     QString program="/usr/bin/sudo";
@@ -58,7 +59,7 @@ int Mount::do_cryptdisk_start(const QString& qname, const QString& pass)
 
     int code = proc.exitCode();
     std::cerr << "exit code: " << code << std::endl;
-    return code==0;
+    return code == 0;
     // 0 - success
     // 255 - wrong password
 }
@@ -91,44 +92,50 @@ void Mount::run_unmount(const QString& name)
     }
 }
 
-
-void Mount::run_mount(QWidget* parent, const QString& name)
+void Mount::run_mount(const QString& name)
 {
     QString location = ctab.location(name);
     if (location.length()) {
         State state = mounts.state(location, name);
         switch(state) {
         case disconnected: {
-                QMessageBox msgBox;
-                msgBox.setWindowTitle("Fail to mount");
-                msgBox.setText("You can't mount a disconnected drive. Please, connect it first");
-                msgBox.exec();
-            }
-            break;
+            emit signal([&](){
+                 QMessageBox msgBox;
+                 msgBox.setWindowTitle("Fail to mount");
+                 msgBox.setText("You can't mount a disconnected drive. Please, connect it first");
+                 msgBox.exec();});
+        }
+        break;
         case connected: {
-                bool ok;
-                QString cap("Unlocking");
-                cap.append(' ');
-                cap.append(name);
-                QString msg ("Please, enter passphrase");
-                QString text = QInputDialog::getText(parent,
-                                                     cap,
-                                                     msg,
-                                                     QLineEdit::Password,
-                                                     "",
-                                                     &ok);
-                if (ok && !text.isEmpty()) {
-                    if(do_cryptdisk_start(name, text)) {
-                        do_mount(name);
-                    } else {
+            bool ok;
+            QString cap("Unlocking");
+            cap.append(' ');
+            cap.append(name);
+            QString msg ("Please, enter passphrase");
+            QString text;
+            emit (signal([&](){
+                text = QInputDialog::getText(parent,
+                                             cap,
+                                             msg,
+                                             QLineEdit::Password,
+                                             "",
+                                             &ok);
+            }));
+            if (ok && !text.isEmpty()) {
+                if(do_cryptdisk_start(name, text))
+                {
+                    do_mount(name);
+                } else {
+                    emit (signal([&](){
                         QMessageBox msgBox;
                         msgBox.setWindowTitle("Fail to mount");
                         msgBox.setText("Wrong password");
                         msgBox.exec();
-                    }
+                    }));
                 }
-                break;
             }
+        }
+        break;
         case dm_started:
             do_mount(name);
         default: /* nothing to do here */
@@ -137,9 +144,19 @@ void Mount::run_mount(QWidget* parent, const QString& name)
     }
 }
 
+
+void Mount::refresh() {
+    ctab.refresh();
+    fstab.refresh();
+    mounts.refresh();
+}
+
+
 int Mount::just_run(QString& program, QStringList& arguments)
 {
+    LongOperation cursor();
     QProcess proc(NULL);
+
     std::cerr << "starting " << program.toStdString() << std::endl;
     proc.start(program, arguments);
 
@@ -153,6 +170,7 @@ int Mount::just_run(QString& program, QStringList& arguments)
 
     int code = proc.exitCode();
     std::cerr << "exit code: " << code << std::endl;
+
     return code;
 }
 
