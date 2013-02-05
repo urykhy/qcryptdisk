@@ -35,10 +35,10 @@ QString State2String(State s) {
 }
 
 namespace aux {
-    extern QString fstab;
-    extern QString mounts;
-    extern QString crypttab;
-    extern QString prefix;
+    extern const QString fstab;
+    extern const QString mounts;
+    extern const QString crypttab;
+    extern const QString prefix;
 }
 
 
@@ -244,7 +244,7 @@ protected:
     int do_umount(const QString& name);
 
     // util
-    int just_run(QString& program, QStringList& arguments);
+    int just_run(const QString& program, QStringList& arguments);
 
 public:
     CryptTab ctab;

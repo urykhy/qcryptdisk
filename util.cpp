@@ -2,32 +2,32 @@
 #include <util.h>
 
 namespace aux {
-    QString fstab("/etc/fstab");
-    QString mounts("/proc/mounts");
-    QString crypttab("/etc/crypttab");
-    QString prefix("/dev/mapper/");
+    const QString fstab("/etc/fstab");
+    const QString mounts("/proc/mounts");
+    const QString crypttab("/etc/crypttab");
+    const QString prefix("/dev/mapper/");
+    const QString mount="/bin/mount";
+    const QString umount="/bin/umount";
+    const QString sudo="/usr/bin/sudo";
+    const QString cryptsetup="/sbin/cryptsetup";
 }
 
 
 int Mount::do_umount(const QString& name)
 {
-    QString program="/bin/umount";
     QStringList arguments;
     QString mount_point( fstab.mountpoint(name) );
     arguments << mount_point;
-
-    return just_run(program, arguments)==0;
+    return just_run(aux::umount, arguments)==0;
 }
 
 
 int Mount::do_mount(const QString& name)
 {
-    QString program="/bin/mount";
     QStringList arguments;
     QString mount_point( fstab.mountpoint(name) );
     arguments << mount_point;
-
-    return just_run(program, arguments)==0;
+    return just_run(aux::mount, arguments)==0;
     // 0 - mount success
 }
 
@@ -36,14 +36,14 @@ int Mount::do_cryptdisk_start(const QString& qname, const QString& pass)
     LongOperation cursor();
 
     // sudo cryptsetup -T 1 luksOpen <location> <name>
-    QString program="/usr/bin/sudo";
+
     QStringList arguments;
     QString qlocation = ctab.location(qname);
 
-    arguments << "/sbin/cryptsetup" << "-T" << "1" << "luksOpen" << qlocation << qname;
+    arguments << aux::cryptsetup << "-T" << "1" << "luksOpen" << qlocation << qname;
 
     QProcess proc(NULL);
-    proc.start(program, arguments);
+    proc.start(aux::sudo, arguments);
 
     if (!proc.waitForStarted()) {
         std::cerr << "fail to sudo cryptsetup" << std::endl;
@@ -66,12 +66,9 @@ int Mount::do_cryptdisk_start(const QString& qname, const QString& pass)
 
 int Mount::do_cryptdisk_stop(const QString& name)
 {
-    QString program="/usr/bin/sudo";
     QStringList arguments;
-
-    arguments << "/sbin/cryptsetup" << "luksClose" << name;
-
-    return just_run(program, arguments)==0;
+    arguments << aux::cryptsetup << "luksClose" << name;
+    return just_run(aux::sudo, arguments)==0;
 }
 
 void Mount::run_unmount(const QString& name)
@@ -152,7 +149,7 @@ void Mount::refresh() {
 }
 
 
-int Mount::just_run(QString& program, QStringList& arguments)
+int Mount::just_run(const QString& program, QStringList& arguments)
 {
     LongOperation cursor();
     QProcess proc(NULL);
