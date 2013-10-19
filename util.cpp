@@ -47,6 +47,7 @@ int Mount::do_cryptdisk_start(const QString& qname, const QString& pass)
 
     if (!proc.waitForStarted()) {
         std::cerr << "fail to sudo cryptsetup" << std::endl;
+		return 0;
     }
 
     std::string pass_ = pass.toStdString();
@@ -141,6 +142,72 @@ void Mount::run_mount(const QString& name)
     }
 }
 
+static int
+get_canonical_name(const std::string& fname, QString& result)
+{
+	char resolved_path[PATH_MAX];
+	char* nname = realpath(fname.c_str(), resolved_path);
+	if (nname) {
+		result.append(nname);
+		return 0;
+	}
+	std::cerr << "fail to get canonical name for " << fname << ": " << strerror(errno) << std::endl;
+	return -1;
+}
+
+
+void Mount::run_disconnect(const QString &name)
+{
+    QString location = ctab.location(name);
+    if (!location.length()) {
+        return;
+    }
+
+    State state = mounts.state(location, name);
+    if (state != connected) {
+        emit (signal([&](){
+              QMessageBox msgBox;
+              msgBox.setWindowTitle("Fail to disconnect");
+              msgBox.setText("You can disonnect not used drive only");
+              msgBox.exec();
+        }));
+        return;
+    }
+
+	QString n;
+	if (!get_canonical_name(location.toStdString(), n)) {
+		if (n.startsWith("/dev/")) {
+			n.remove(0, 5);
+    		do_disconnect(n);
+		}
+	}
+}
+
+int Mount::do_disconnect(const QString& name)
+{
+    LongOperation cursor();
+
+	// sudo bash -c "echo 1 > /sys/block/sdb/device/delete"
+    QStringList arguments;
+	QString cmdline("echo 1 > /sys/block/" + name + "/device/delete");
+	arguments << "/bin/bash" << "-c" << cmdline;
+
+    QProcess proc(NULL);
+    proc.start(aux::sudo, arguments);
+
+    if (!proc.waitForStarted()) {
+        std::cerr << "fail to sudo bash" << std::endl;
+		return 0;
+    }
+
+    while(!proc.waitForFinished()) {
+        std::cerr << "still not finished!" << std::endl;
+    }
+
+    int code = proc.exitCode();
+    std::cerr << "exit code: " << code << std::endl;
+    return code == 0;
+}
 
 void Mount::refresh() {
     ctab.refresh();

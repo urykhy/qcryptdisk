@@ -1,8 +1,8 @@
 /********************************************************************************
 ** Form generated from reading UI file 'dialog.ui'
 **
-** Created: Fri Jun 1 01:16:36 2012
-**      by: Qt User Interface Compiler version 4.8.1
+** Created: Sat Oct 19 18:58:34 2013
+**      by: Qt User Interface Compiler version 4.8.2
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -32,6 +32,7 @@ public:
     QHBoxLayout *horizontalLayout;
     QPushButton *button_mount;
     QPushButton *button_umount;
+    QPushButton *button_disconnect;
     QSpacerItem *verticalSpacer;
     QPushButton *button_refresh;
 
@@ -87,6 +88,11 @@ public:
 
         horizontalLayout->addWidget(button_umount);
 
+        button_disconnect = new QPushButton(DialogClass);
+        button_disconnect->setObjectName(QString::fromUtf8("button_disconnect"));
+
+        horizontalLayout->addWidget(button_disconnect);
+
         verticalSpacer = new QSpacerItem(38, 37, QSizePolicy::Minimum, QSizePolicy::Preferred);
 
         horizontalLayout->addItem(verticalSpacer);
@@ -116,6 +122,7 @@ public:
         ___qtablewidgetitem2->setText(QApplication::translate("DialogClass", "state", 0, QApplication::UnicodeUTF8));
         button_mount->setText(QApplication::translate("DialogClass", "Mount", 0, QApplication::UnicodeUTF8));
         button_umount->setText(QApplication::translate("DialogClass", "Unmount", 0, QApplication::UnicodeUTF8));
+        button_disconnect->setText(QApplication::translate("DialogClass", "Disconnect", 0, QApplication::UnicodeUTF8));
         button_refresh->setText(QApplication::translate("DialogClass", "Refresh", 0, QApplication::UnicodeUTF8));
     } // retranslateUi
 

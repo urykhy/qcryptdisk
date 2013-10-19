@@ -231,6 +231,7 @@ public:
     // top level functions
     void run_unmount(const QString& name);
     void run_mount(const QString& name);
+    void run_disconnect(const QString& name);
     void refresh();
 
 signals:
@@ -242,6 +243,7 @@ protected:
     int do_cryptdisk_stop(const QString& name);
     int do_mount(const QString& name);
     int do_umount(const QString& name);
+    int do_disconnect(const QString& name);
 
     // util
     int just_run(const QString& program, QStringList& arguments);

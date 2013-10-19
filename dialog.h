@@ -38,6 +38,7 @@ private slots:
     void on_button_mount_clicked();
     void on_button_umount_clicked();
     void on_button_refresh_clicked();
+    void on_button_disconnect_clicked();
 };
 
 #endif // DIALOG_H

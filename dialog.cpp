@@ -122,3 +122,10 @@ void Dialog::mount_cb(std::function<void(void)> f)
 }
 
 
+void Dialog::on_button_disconnect_clicked()
+{
+// /sys/block/$1/device/delete
+    QString name = get_current_name();
+    std::cerr << "disconnecting " << name.toStdString() << std::endl;
+    run_work(std::bind(&Mount::run_disconnect, &mount, name));
+}
