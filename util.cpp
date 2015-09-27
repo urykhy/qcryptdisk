@@ -178,6 +178,9 @@ void Mount::run_disconnect(const QString &name)
 	if (!get_canonical_name(location.toStdString(), n)) {
 		if (n.startsWith("/dev/")) {
 			n.remove(0, 5);
+            while (n[n.size() - 1].category() != QChar::Letter_Lowercase) {
+                n.resize(n.size() - 1);
+            }
     		do_disconnect(n);
 		}
 	}
@@ -189,7 +192,7 @@ int Mount::do_disconnect(const QString& name)
 
 	// sudo bash -c "echo 1 > /sys/block/sdb/device/delete"
     QStringList arguments;
-	QString cmdline("echo 1 > /sys/block/" + name + "/device/delete");
+    QString cmdline("echo 1 > /sys/block/" + name + "/device/delete");
 	arguments << "/bin/bash" << "-c" << cmdline;
 
     QProcess proc(NULL);
