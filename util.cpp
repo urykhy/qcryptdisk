@@ -17,8 +17,8 @@ int Mount::do_umount(const QString& name)
 {
     QStringList arguments;
     QString mount_point( fstab.mountpoint(name) );
-    arguments << mount_point;
-    return just_run(aux::umount, arguments)==0;
+    arguments << aux::umount << mount_point;
+    return just_run(aux::sudo, arguments)==0;
 }
 
 
@@ -26,8 +26,8 @@ int Mount::do_mount(const QString& name)
 {
     QStringList arguments;
     QString mount_point( fstab.mountpoint(name) );
-    arguments << mount_point;
-    return just_run(aux::mount, arguments)==0;
+    arguments << aux::mount << mount_point;
+    return just_run(aux::sudo, arguments)==0;
     // 0 - mount success
 }
 
