@@ -15,6 +15,7 @@
 #include <QProcess>
 #include <QModelIndex>
 #include <qapplication.h>
+#include <cassert>
 
 enum State {
     disconnected,
@@ -45,11 +46,13 @@ namespace aux {
 struct CryptTab {
     // we want to parse a crypttab file
 
-    // name -> location
-    typedef std::map<QString, QString> ContainerT;
+    struct VolumeInfo {
+        QString location;
+        bool    ask_pass = true;
+        QString keyfile;
+    };
+    typedef std::map<QString, VolumeInfo> ContainerT;
     ContainerT cnt;
-
-    CryptTab() { }
 
     void refresh() {
         cnt.clear();
@@ -59,7 +62,7 @@ struct CryptTab {
         }
 
         QTextStream in(&file);
-        
+
         while(!in.atEnd()) {
             QString line = in.readLine();
             if (line.length()) {
@@ -75,24 +78,19 @@ struct CryptTab {
         }
 
         QStringList output = s.split(QRegExp("\\s+"), QString::SkipEmptyParts);
-
+        VolumeInfo vi;
         const QString name = output[0];
-        const QString location = output[1];
-        const QString ciper = output[2];
-
-        if (ciper != "none") {
-            std::cerr << "currently only LUKS volumes supported (" << name.toStdString() << " skipped)" << std::endl;
-            return;
+        vi.location = output[1];
+        vi.keyfile = output[2];
+        if (vi.keyfile != "none") {  // assume LUNS volume with keyfile
+            vi.ask_pass = false;
         }
-
-        cnt.insert(std::make_pair(name, location));
+        cnt.insert(std::make_pair(name, vi));
     }
 
-    QString location(const QString& name) {
+    const VolumeInfo& location(const QString& name) {
         ContainerT::iterator i = cnt.find(name);
-        if ( i == cnt.end()) {
-            return QString();
-        }
+        assert (i != cnt.end());
         return i->second;
     }
 
@@ -239,7 +237,7 @@ signals:
 
 protected:
     QWidget* parent;
-    int do_cryptdisk_start(const QString& name, const QString& pass);
+    int do_cryptdisk_start(const QString& qname, const CryptTab::VolumeInfo& name, const QString& pass);
     int do_cryptdisk_stop(const QString& name);
     int do_mount(const QString& name);
     int do_umount(const QString& name);

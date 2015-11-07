@@ -31,16 +31,17 @@ int Mount::do_mount(const QString& name)
     // 0 - mount success
 }
 
-int Mount::do_cryptdisk_start(const QString& qname, const QString& pass)
+int Mount::do_cryptdisk_start(const QString& qname, const CryptTab::VolumeInfo& vi, const QString& pass)
 {
     LongOperation cursor();
 
-    // sudo cryptsetup -T 1 luksOpen <location> <name>
-
     QStringList arguments;
-    QString qlocation = ctab.location(qname);
+    QString qlocation = vi.location;
 
     arguments << aux::cryptsetup << "-T" << "1" << "luksOpen" << qlocation << qname;
+    if (!vi.ask_pass) {
+        arguments << "--key-file" << vi.keyfile;
+    }
 
     QProcess proc(NULL);
     proc.start(aux::sudo, arguments);
@@ -50,8 +51,10 @@ int Mount::do_cryptdisk_start(const QString& qname, const QString& pass)
 		return 0;
     }
 
-    std::string pass_ = pass.toStdString();
-    proc.write(pass_.c_str(), pass_.length());
+    if (vi.ask_pass) {
+        std::string pass_ = pass.toStdString();
+        proc.write(pass_.c_str(), pass_.length());
+    }
     proc.closeWriteChannel();
 
     while(!proc.waitForFinished()) {
@@ -74,7 +77,7 @@ int Mount::do_cryptdisk_stop(const QString& name)
 
 void Mount::run_unmount(const QString& name)
 {
-    QString location = ctab.location(name);
+    QString location = ctab.location(name).location;
     if (location.length()) {
         State state = mounts.state(location, name);
         switch(state) {
@@ -92,7 +95,8 @@ void Mount::run_unmount(const QString& name)
 
 void Mount::run_mount(const QString& name)
 {
-    QString location = ctab.location(name);
+    const CryptTab::VolumeInfo vi = ctab.location(name);
+    const QString location = vi.location;
     if (location.length()) {
         State state = mounts.state(location, name);
         switch(state) {
@@ -105,32 +109,37 @@ void Mount::run_mount(const QString& name)
         }
         break;
         case connected: {
-            bool ok;
-            QString cap("Unlocking");
-            cap.append(' ');
-            cap.append(name);
-            QString msg ("Please, enter passphrase");
             QString text;
-            emit (signal([&](){
-                text = QInputDialog::getText(parent,
-                                             cap,
-                                             msg,
-                                             QLineEdit::Password,
-                                             "",
-                                             &ok);
-            }));
-            if (ok && !text.isEmpty()) {
-                if(do_cryptdisk_start(name, text))
-                {
-                    do_mount(name);
-                } else {
-                    emit (signal([&](){
-                        QMessageBox msgBox;
-                        msgBox.setWindowTitle("Fail to mount");
-                        msgBox.setText("Wrong password");
-                        msgBox.exec();
-                    }));
+
+            if (vi.ask_pass) {    // ask password
+                bool ok;
+                QString cap("Unlocking");
+                cap.append(' ');
+                cap.append(name);
+                QString msg ("Please, enter passphrase");
+                emit (signal([&](){
+                    text = QInputDialog::getText(parent,
+                                                 cap,
+                                                 msg,
+                                                 QLineEdit::Password,
+                                                 "",
+                                                 &ok);
+                }));
+                if (!ok || text.isEmpty()) {
+                    break;
                 }
+            }
+
+            if(do_cryptdisk_start(name, vi, text))
+            {
+                do_mount(name);
+            } else {
+                emit (signal([&](){
+                    QMessageBox msgBox;
+                    msgBox.setWindowTitle("Fail to mount");
+                    msgBox.setText("Wrong password");
+                    msgBox.exec();
+                }));
             }
         }
         break;
@@ -158,7 +167,7 @@ get_canonical_name(const std::string& fname, QString& result)
 
 void Mount::run_disconnect(const QString &name)
 {
-    QString location = ctab.location(name);
+    QString location = ctab.location(name).location;
     if (!location.length()) {
         return;
     }

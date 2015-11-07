@@ -31,7 +31,7 @@ Dialog::refresh()
     {
         QString mp = mount.fstab.mountpoint(i->first);
         if ( mp.length() ) {
-            QString tooltip(i->second);
+            QString tooltip(i->second.location);
 
             std::cerr << "found mountpoint: " << mp.toStdString() << " for " << i->first.toStdString() << std::endl;
             item = new QTableWidgetItem(i->first);
@@ -41,7 +41,7 @@ Dialog::refresh()
             item = new QTableWidgetItem(mp);
             ui->tableWidget->setItem(r,1,item);
 
-            QString state = State2String(mount.mounts.state(i->second, i->first));
+            QString state = State2String(mount.mounts.state(i->second.location, i->first));
             item = new QTableWidgetItem(state);
             ui->tableWidget->setItem(r,2,item);
             ++r;
@@ -106,7 +106,7 @@ void Dialog::on_tableWidget_doubleClicked(QModelIndex index)
 {
     Q_UNUSED(index);
     QString name = get_current_name();
-    QString location = mount.ctab.location(name);
+    QString location = mount.ctab.location(name).location;
 
     State state = mount.mounts.state(location, name);
     if (state == mounted) {
